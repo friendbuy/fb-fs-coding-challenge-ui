@@ -1,39 +1,35 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLoginStateController } from "../Login";
 
 export const POINTS_BALANCE_KEY = "POINTS_BALANCE";
 
+export interface PointsBalanceProps {
+    balance: number;
+    error: null | {
+        message: string;
+    };
+    isLoading: boolean;
+    onPointsRedeemed: (points: number) => void; //TODO: Callback that isn't required everywhere but kept here for clarity of prop
+}
+
+
 export function usePointsBalance() {
   const { userId } = useLoginStateController();
-  const [points, setPoints] = useState<number>();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>();
 
-  const getData = useCallback(async (id: string) => {
-    setError(undefined);
-    setIsLoading(true);
-
-    try {
+  return useQuery({
+    queryKey: [POINTS_BALANCE_KEY, userId],
+    queryFn: async () => {
       const response = await fetch(
-        `http://localhost:8080/points/balance/${id}`
+        `http://localhost:8080/points/balance/${userId}`
       );
+
       if (!response.ok) {
         throw new Error(await response.json());
       }
+
       const data: { balance: number } = await response.json();
-      setPoints(data.balance);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (userId) {
-      getData(userId);
-    }
-  }, [userId, getData]);
-
-  return { points, isLoading, error };
+      return {...data, userId};
+    },
+    retry: false,
+  });
 }
